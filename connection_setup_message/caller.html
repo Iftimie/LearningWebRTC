@@ -1,0 +1,63 @@
+<html>
+<head>
+  <title>WebRTC</title>
+  <script type="module">
+    import * as common from './common.js';
+
+    async function start() {
+      const [peerConnection, dataChannel] = initializeBeforeCreatingOffer()
+      await prepareOfferSDP(peerConnection)
+      await receiveAnswerSDP(peerConnection)
+      await sendMessage(dataChannel)
+    }
+
+    function initializeBeforeCreatingOffer() {
+      const peerConnection = new RTCPeerConnection()
+      common.addConnectionStateHandler(peerConnection)
+      const dataChannel = peerConnection.createDataChannel(common.CHAT_CHANNEL)
+      dataChannel.onmessage = function (e) {
+        console.log("Received message: ", e.data)
+      };
+      return [peerConnection, dataChannel]
+    }
+
+    async function prepareOfferSDP(peerConnection) {
+      const localOffer = await peerConnection.createOffer()
+      await peerConnection.setLocalDescription(localOffer)
+      await common.waitForAllICE(peerConnection)
+      const localOfferWithICECandidates = peerConnection.localDescription
+      console.log("localOfferWithICECandidates:")
+      console.log(JSON.stringify(localOfferWithICECandidates))
+    }
+
+    async function receiveAnswerSDP(peerConnection) {
+      console.log("Will wait for answer")
+      const remoteAnswerString = prompt("Peer answer");
+      const remoteAnswer = JSON.parse(remoteAnswerString)
+      peerConnection.setRemoteDescription(remoteAnswer)
+    }
+
+    async function sendMessage(dataChannel) {
+      await waitForDataChannelOpen(dataChannel)
+      console.log("Sending message. Check the other tab")
+      dataChannel.send("Hello")
+    }
+
+    function waitForDataChannelOpen(dataChannel) {
+      return common.waitForEvent((fulfill) => {
+        dataChannel.onopen = function() {
+          if (dataChannel.readyState == "open") {
+              fulfill()
+          }
+        };
+      })
+    }
+
+    console.log("\n".repeat(10))
+    start()
+  </script>
+</head>
+<body>
+  <h1>Hi! Check the console!</h1>
+</body>
+</html>

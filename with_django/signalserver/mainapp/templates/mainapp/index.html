@@ -1,0 +1,17 @@
+{% load static %}
+<html>
+<head>
+  <title>WebRTC</title>
+  
+  <script src="{% static 'django_eventstream/eventsource.min.js' %}"></script>
+  <script src="{% static 'django_eventstream/reconnecting-eventsource.js' %}"></script>
+  <script type="module">
+    import("/static/index.js").then(module => {
+      module.start("{{ user }}");
+    });
+  </script>
+</head>
+<body>
+  <h1>Check the console</h1>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<html>
+<head>
+  <title>WebRTC</title>
+  <script type="module">
+    import * as common from './common.js';
+
+    async function start() {
+      const peerConnection = initializeBeforeCreatingOffer()
+      await prepareOfferSDP(peerConnection)
+      await receiveAnswerSDP(peerConnection)
+    }
+
+    function initializeBeforeCreatingOffer() {
+      const peerConnection = new RTCPeerConnection()
+      common.addConnectionStateHandler(peerConnection)
+      peerConnection.createDataChannel(common.CHAT_CHANNEL)
+      return peerConnection
+    }
+
+    async function prepareOfferSDP(peerConnection) {
+      const localOffer = await peerConnection.createOffer()
+      await peerConnection.setLocalDescription(localOffer)
+      await common.waitForAllICE(peerConnection)
+      const localOfferWithICECandidates = peerConnection.localDescription
+      console.log("localOfferWithICECandidates:")
+      console.log(JSON.stringify(localOfferWithICECandidates))
+    }
+
+    async function receiveAnswerSDP(peerConnection) {
+      console.log("Will wait for answer")
+      const remoteAnswerString = prompt("Peer answer");
+      const remoteAnswer = JSON.parse(remoteAnswerString)
+      peerConnection.setRemoteDescription(remoteAnswer)
+    }
+
+    console.log("\n".repeat(10))
+    start()
+  </script>
+</head>
+<body>
+  <h1>Hi! Check the console!</h1>
+</body>
+</html>
