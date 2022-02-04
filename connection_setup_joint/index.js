@@ -5,7 +5,7 @@ async function start() {
     const [peerConnection, dataChannel] = initializeBeforeCreatingOffer()
     await prepareOfferSDP(peerConnection)
 
-    const remoteOfferString = prompt("Peer offer (skip if impolite peer)");
+    const remoteOfferString = prompt("Peer offer (skip if caller peer)");
     if (remoteOfferString) {
         await bePolite(remoteOfferString, peerConnection)
     } else {
