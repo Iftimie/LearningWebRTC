@@ -7,9 +7,9 @@ async function start() {
 
     const remoteOfferString = prompt("Peer offer (skip if caller peer)");
     if (remoteOfferString) {
-        await bePolite(remoteOfferString, peerConnection)
+        await beCallee(remoteOfferString, peerConnection)
     } else {
-        await beImpolite(peerConnection, dataChannel)
+        await beCaller(peerConnection, dataChannel)
     }
 }
 
@@ -32,7 +32,7 @@ async function prepareOfferSDP(peerConnection) {
     console.log(JSON.stringify(localOfferWithICECandidates))
 }
 
-async function bePolite(remoteOfferString, peerConnection) {
+async function beCallee(remoteOfferString, peerConnection) {
     await receiveOfferSDP(peerConnection, remoteOfferString)
     await sendAnswerSDP(peerConnection)
 
@@ -67,7 +67,7 @@ function waitForDataChannel(peerConnection) {
     })
 }
 
-async function beImpolite(peerConnection, dataChannel) {
+async function beCaller(peerConnection, dataChannel) {
     await receiveAnswerSDP(peerConnection)
     await sendMessage(dataChannel)
 }
