@@ -1,13 +1,15 @@
-import aiortc
 import asyncio
-import common
-import asyncio
-import requests
 import json
+
+import aiortc
+import requests
 from aiosseclient import aiosseclient
 
+import common
+
+
 async def main():
-    username = "impolite"
+    username = "polite"
     peerConnection, dataChannel = initializeBeforeCreatingOffer(username)
 
     async def inner(sessionDescriptionProtocol):
@@ -48,8 +50,9 @@ async def beCallee(remoteOffer, peerConnection, username, dataChannel):
     except:
         print("waited too long for data channel. probably it was already received asynchronously")
     finally:
+        print("Sending message, check the other tab", dataChannel['obj'].readyState)
         dataChannel['obj'].send("World")
-        print("Sending message, check the other tab")
+        print("finished sending message")
 
 
 async def receiveOfferSDP(peerConnection, remoteOffer):
@@ -72,9 +75,10 @@ def waitForDataChannel(peerConnection):
     async def inner(fulfill):
         peerConnectionObj = peerConnection['obj']
 
-        aiortc.RTCDataChannel
+        # aiortc.RTCDataChannel
         @peerConnectionObj.on('datachannel')
         def ondatachannel(channel):
+            print("received channel ?")
             channel.add_listener('message', lambda e: print(e))
 
             fulfill(channel)
@@ -87,10 +91,12 @@ async def beCaller(remoteAnswer, peerConnection, dataChannel):
 
 
 async def receiveAnswerSDP(peerConnection, remoteAnswer):
-    await peerConnection['obj'].setRemoteDescription(remoteAnswer)
+    print("Received answer")
+    spanac = await peerConnection['obj'].setRemoteDescription(remoteAnswer)
 
 
 async def sendMessage(dataChannel):
+    await asyncio.sleep(3)
     if (secondOfferIsJustWithVideoTracks(dataChannel)):
         await waitForDataChannelOpen(dataChannel)
     print("Sending message. Check the other tab")
@@ -120,23 +126,28 @@ def withPerfectNegociationHandler(user_function, peerConnection, username, dataC
                 if shouldSkipMessage(message, peerConnection, username, makingOffer):
                     continue
 
-                if await peerRefreshedPage(dataChannel):
+                if await peerRefreshedPage(dataChannel) or shouldAcceptOffer(peerConnection, username):
                     peerConnection['obj'].close()
                     peerConnection['obj'] = initializeRTCPeerConnection(username)
                     addNegociationNeededHandler(peerConnection, makingOffer, username)
                 
-                SDP = json.loads(json.loads(message)['sdp'])
+                SDP = json.loads(message)['sdp']
                 SDP = aiortc.RTCSessionDescription(**SDP)
                 await user_function(SDP)
     asyncio.create_task(eventSource())
 
+
+def shouldAcceptOffer(peerConnection, username):
+    if username == "polite" and peerConnection['obj'].signalingState == "have-local-offer":
+        return True
+    return False
 
 def shouldSkipMessage(data, peerConnection, username, makingOffer):
     message = json.loads(data)
     if (messageIsReflected(message, username)):
         return True
 
-    description = json.loads(message['sdp'])
+    description = message['sdp']
 
     if (shouldIgnoreOffer(description, makingOffer, peerConnection, username)):
         return True
@@ -161,7 +172,7 @@ async def peerRefreshedPage(dataChannel):
     try:
         if dataChannel['obj'] != None and dataChannel['obj'].readyState == "open":
             print("Aparently the only way to check if the connection is still open is by trying to send a message")
-            await dataChannel['obj'].send("test message")
+            dataChannel['obj'].send("test message")
     except:
         return True
     return False
@@ -172,6 +183,8 @@ def addNegociationNeededHandler(peerConnection, makingOffer, username):
     async def inner():
         makingOffer['obj'] = True
         await peerConnection['obj'].setLocalDescription(await peerConnection['obj'].createOffer())
+        print("Sleeping in order to gather candidates")
+        await asyncio.sleep(2)
         localOfferWithICECandidates = peerConnection['obj'].localDescription
         localOfferWithICECandidatesSerializable = {
             "type": localOfferWithICECandidates.type,

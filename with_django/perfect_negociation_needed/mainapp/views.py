@@ -3,16 +3,18 @@ from django.views.decorators.csrf import csrf_exempt
 from django_eventstream import send_event
 from django.http.response import HttpResponse
 import json
+import time
+
+"""
+Request body contains:
+sdp
+user
+"""
 
 @csrf_exempt
 def sdp(request):
     if request.method == "POST":
-        request_body = json.loads(request.body)
-        received_offer = json.dumps(request_body['sdp'])
-        user = request_body['user']
-        message_to_send = {"sdp": received_offer, "user": user}
-
-        send_event('testchannel', 'message', message_to_send)
+        send_event('testchannel', 'message', json.loads(request.body))
         return HttpResponse("ok")
 
 def home(request, user):

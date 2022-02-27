@@ -10,6 +10,7 @@ export async function start(username) {
             await beCaller(sessionDescriptionProtocol, peerConnection, dataChannel)
         }
     }, peerConnection, username, dataChannel)
+
     firstNegotiationNeededEvent(peerConnection, dataChannel)
 
     if (username === "impolite") {
@@ -20,8 +21,8 @@ export async function start(username) {
 }
 
 function initializeBeforeCreatingOffer(username) {
-    const peerConnection = {obj: initializeRTCPeerConnection(username)}
-    const dataChannel = {obj: null}
+    const peerConnection = { obj: initializeRTCPeerConnection(username) }
+    const dataChannel = { obj: null }
     return [peerConnection, dataChannel]
 }
 
@@ -48,7 +49,7 @@ async function beCallee(remoteOffer, peerConnection, username, dataChannel) {
         console.log("Sending message, check the other tab")
     }
 }
-    
+
 
 async function receiveOfferSDP(peerConnection, remoteOffer) {
     await peerConnection.obj.setRemoteDescription(remoteOffer)
@@ -58,10 +59,14 @@ async function receiveOfferSDP(peerConnection, remoteOffer) {
 async function sendAnswerSDP(peerConnection, username) {
     // not necessary in this particular scenario to collect ICE candidates for answer
     // to establish connection is sufficient from the caller to send his ICE candidates in the offer
+    console.log("Sending answer")
     await peerConnection.obj.setLocalDescription()
+    // await common.waitForAllICE(peerConnection)
     const localAnswerWithICECandidates = peerConnection.obj.localDescription
-    await fetch('http://127.0.0.1:10000/sdp', { method: 'POST',
-        body: JSON.stringify({"user": username, "sdp": localAnswerWithICECandidates})
+    await fetch('http://127.0.0.1:10000/sdp', {
+        method: 'POST',
+        body: JSON.stringify({ "user": username, "sdp": localAnswerWithICECandidates }),
+        redirect: 'manual',
     })
 }
 
@@ -69,6 +74,7 @@ function waitForDataChannel(peerConnection) {
     return common.waitForEvent((fulfill) => {
         peerConnection.obj.ondatachannel = function (e) {
             const dataChannel = e.channel
+            console.log("Received datachannel")
             dataChannel.onmessage = function (e) {
                 console.log("Received message: ", e.data)
             };
@@ -102,7 +108,7 @@ function secondOfferIsJustWithVideoTracks(dataChannel) {
 
 function waitForDataChannelOpen(dataChannel) {
     return common.waitForEvent((fulfill) => {
-        dataChannel.obj.onopen = function() {
+        dataChannel.obj.onopen = function () {
             if (dataChannel.obj.readyState == "open") {
                 fulfill()
             }
@@ -111,39 +117,46 @@ function waitForDataChannelOpen(dataChannel) {
 }
 
 function withPerfectNegociationHandler(user_function, peerConnection, username, dataChannel) {
-    var makingOffer = {obj: false}
+    var makingOffer = { obj: false }
 
     addNegotiationNeededHandler(peerConnection, makingOffer, username)
 
     var es = new ReconnectingEventSource('/events?channel=testchannel');
-    es.addEventListener('message', async function ({data}) {
+    es.addEventListener('message', async function ({ data }) {
         try {
             if (shouldSkipMessage(data, peerConnection, username, makingOffer)) {
                 return;
             }
-            if (peerRefreshedPage(dataChannel)) {
+            if (peerRefreshedPage(dataChannel) || shouldAcceptOffer(username, peerConnection)) {
+                console.log("Reinitialized RTCPeerConnection")
                 peerConnection.obj.close()
                 peerConnection.obj = initializeRTCPeerConnection()
                 addNegotiationNeededHandler(peerConnection, makingOffer, username)
             }
-            
-            const SDP = JSON.parse(JSON.parse(data).sdp)
+
+            const SDP = JSON.parse(data).sdp
             await user_function(SDP)
-        } catch(err) {
+        } catch (err) {
             console.error(err);
-        }   
+        }
     }, false);
     return makingOffer
 }
 
+function shouldAcceptOffer(username, peerConnection) {
+    if (username == "polite" && peerConnection.obj.connectionState === "new")
+        return true
+    return false
+}
+
 function shouldSkipMessage(data, peerConnection, username, makingOffer) {
     const message = JSON.parse(data)
-    if (messageIsReflected(message, username)){
+    if (messageIsReflected(message, username)) {
         return true;
     }
-    const description = JSON.parse(message.sdp)
+    const description = message.sdp
 
-    if (shouldIgnoreOffer(description, makingOffer, peerConnection, username)){
+    if (shouldIgnoreOffer(description, makingOffer, peerConnection, username)) {
         return true;
     }
     return false
@@ -180,10 +193,11 @@ function addNegotiationNeededHandler(peerConnection, makingOffer, username) {
                 await common.waitForAllICE(peerConnection)
                 collectedIce = true
             }
-    
+
             const localOfferWithICECandidates = peerConnection.obj.localDescription
-            await fetch('http://127.0.0.1:10000/sdp', { method: 'POST',
-                body: JSON.stringify({ "user": username, "sdp": localOfferWithICECandidates})
+            await fetch('http://127.0.0.1:10000/sdp', {
+                method: 'POST',
+                body: JSON.stringify({ "user": username, "sdp": localOfferWithICECandidates })
             })
         } catch (err) {
             console.log(err)
@@ -196,11 +210,11 @@ function addNegotiationNeededHandler(peerConnection, makingOffer, username) {
 async function secondNegotiationNeededEvent(peerConnection) {
     // no negociationneeded event will be triggered for a new data channel, however I will still send it just to not update the callee branch
     // the callee branch always expects a new data channel (waitForDataChannel)
-    peerConnection.obj.createDataChannel("chat2") 
+    peerConnection.obj.createDataChannel("chat2")
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
     for (const track of stream.getTracks()) {
-      peerConnection.obj.addTrack(track, stream);
+        peerConnection.obj.addTrack(track, stream);
     }
     console.log("Should fire new negociationneeded event")
 }
