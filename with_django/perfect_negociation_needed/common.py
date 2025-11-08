@@ -1,7 +1,6 @@
 from aiortc import RTCPeerConnection
 from functools import partial
 import requests
-from promise import Promise
 import asyncio
 
 CHAT_CHANNEL = "chat"

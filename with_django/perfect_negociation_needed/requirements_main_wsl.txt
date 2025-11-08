@@ -1,0 +1,2 @@
+aiosseclient==0.1.8
+aiortc==1.14.0
